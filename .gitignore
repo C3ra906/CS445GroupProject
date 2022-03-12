@@ -2,3 +2,4 @@
 mlp/env/*
 mlp/.idea/*
 .idea/*
+venv/*

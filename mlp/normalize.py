@@ -2,10 +2,10 @@ import pandas as pd
 import numpy as np
 from enum import Enum
 
-
 class Gender(Enum):
     MALE = 0
     FEMALE = 1
+    OTHER = 2
 
 
 class Married(Enum):
@@ -37,6 +37,7 @@ def load(filepath):
     file = pd.read_csv(filepath)
     file['gender'].mask(file['gender'] == 'Female', Gender.FEMALE.value, inplace=True)
     file['gender'].mask(file['gender'] == 'Male', Gender.MALE.value, inplace=True)
+    file['gender'].mask(file['gender'] == 'Other', Gender.OTHER.value, inplace=True)
     file['ever_married'].mask(file['ever_married'] == 'Yes', Married.YES.value, inplace=True)
     file['ever_married'].mask(file['ever_married'] == 'No', Married.NO.value, inplace=True)
     file['work_type'].mask(file['work_type'] == 'Private', WorkType.PRIVATE.value, inplace=True)
@@ -48,25 +49,18 @@ def load(filepath):
     file['Residence_type'].mask(file['Residence_type'] == 'Rural', Residence.RURAL.value, inplace=True)
     file['smoking_status'].mask(file['smoking_status'] == 'smokes', SmokingStatus.SMOKES.value, inplace=True)
     file['smoking_status'].mask(file['smoking_status'] == 'never smoked', SmokingStatus.NEVER.value, inplace=True)
-    file['smoking_status'].mask(file['smoking_status'] == 'formerly smoked', SmokingStatus.FORMERLY_SMOKED.value, inplace=True)
+    file['smoking_status'].mask(file['smoking_status'] == 'formerly smoked', SmokingStatus.FORMERLY_SMOKED.value,
+                                inplace=True)
     file['smoking_status'].mask(file['smoking_status'] == 'Unknown', SmokingStatus.UNKNOWN.value, inplace=True)
     file['bmi'].mask(np.isnan(file['bmi']), 0, inplace=True)
-    file.drop(labels='id', axis=1, inplace=True)
+    labels = file['stroke']
+    file.drop(labels=['id', 'stroke'], axis=1, inplace=True)
 
-    for row in file.iterrows():
-        for col in row:
-
-    num_rows, num_cols = file.shape
-    for idx, col in file.iteritems():
-        print(idx)
-        print(col)
-        print('*************************')
-        # mean = np.mean(file[column].to_numpy())
-        # std = np.std(file[column].to_numpy())
+    for idx, column in file.iteritems():
+        mean = column.mean()
+        std = column.std()
+        file[idx] = (file[idx] - mean) / std
+    return file, labels
 
 
-    # file.to_csv('numerical_data.csv', header=True)
-    # return file
-
-
-load("../healthcare-dataset-stroke-data.csv")
+file, labels = load('../healthcare-dataset-stroke-data.csv')
