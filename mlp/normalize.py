@@ -2,10 +2,10 @@ import pandas as pd
 import numpy as np
 from enum import Enum
 
+
 class Gender(Enum):
     MALE = 0
     FEMALE = 1
-    OTHER = 2
 
 
 class Married(Enum):
