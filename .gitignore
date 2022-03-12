@@ -1,3 +1,4 @@
 .vs/*
 mlp/env/*
-mlp/.idea
+mlp/.idea/*
+.idea/*
