@@ -55,6 +55,8 @@ def load(filepath):
     file['smoking_status'].mask(file['smoking_status'] == 'Unknown', SmokingStatus.UNKNOWN.value, inplace=True)
     file['bmi'].mask(np.isnan(file['bmi']), 0, inplace=True)
 
+    file.drop(labels='id', axis=1, inplace=True)
+
     for idx, column in file.iteritems():
         if idx == 'stroke':
             break
