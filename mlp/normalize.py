@@ -6,7 +6,7 @@ from enum import Enum
 class Gender(Enum):
     MALE = 0
     FEMALE = 1
-
+    OTHER = 2
 
 class Married(Enum):
     NO = 0
@@ -37,6 +37,7 @@ def load(filepath):
     file = pd.read_csv(filepath)
     file['gender'].mask(file['gender'] == 'Female', Gender.FEMALE.value, inplace=True)
     file['gender'].mask(file['gender'] == 'Male', Gender.MALE.value, inplace=True)
+    file['gender'].mask(file['gender'] == 'Other', Gender.MALE.value, inplace=True)
     file['ever_married'].mask(file['ever_married'] == 'Yes', Married.YES.value, inplace=True)
     file['ever_married'].mask(file['ever_married'] == 'No', Married.NO.value, inplace=True)
     file['work_type'].mask(file['work_type'] == 'Private', WorkType.PRIVATE.value, inplace=True)
@@ -53,8 +54,6 @@ def load(filepath):
     file['bmi'].mask(np.isnan(file['bmi']), 0, inplace=True)
     file.drop(labels='id', axis=1, inplace=True)
 
-    for row in file.iterrows():
-        for col in row:
 
     num_rows, num_cols = file.shape
     for idx, col in file.iteritems():
@@ -65,8 +64,8 @@ def load(filepath):
         # std = np.std(file[column].to_numpy())
 
 
-    # file.to_csv('numerical_data.csv', header=True)
-    # return file
+    file.to_csv('numerical_data.csv', header=True)
+    return file
 
 
 load("../healthcare-dataset-stroke-data.csv")
