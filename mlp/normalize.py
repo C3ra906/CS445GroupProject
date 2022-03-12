@@ -6,6 +6,7 @@ from enum import Enum
 class Gender(Enum):
     MALE = 0
     FEMALE = 1
+    OTHER = 2
 
 
 class Married(Enum):
@@ -53,14 +54,15 @@ def load(filepath):
                                 inplace=True)
     file['smoking_status'].mask(file['smoking_status'] == 'Unknown', SmokingStatus.UNKNOWN.value, inplace=True)
     file['bmi'].mask(np.isnan(file['bmi']), 0, inplace=True)
-    labels = file['stroke']
-    file.drop(labels=['id', 'stroke'], axis=1, inplace=True)
 
     for idx, column in file.iteritems():
+        if idx == 'stroke':
+            break
         mean = column.mean()
         std = column.std()
         file[idx] = (file[idx] - mean) / std
-    return file, labels
+
+    file.to_csv("normalized_data.csv")
 
 
-file, labels = load('../healthcare-dataset-stroke-data.csv')
+load('../healthcare-dataset-stroke-data.csv')
