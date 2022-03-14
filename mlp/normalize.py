@@ -1,6 +1,7 @@
-import pandas as pd
-import numpy as np
 from enum import Enum
+
+import numpy as np
+import pandas as pd
 
 
 class Gender(Enum):
@@ -64,7 +65,7 @@ def load(filepath):
         std = column.std()
         file[idx] = (file[idx] - mean) / std
 
-    file.to_csv("normalized_data.csv")
+    file.to_csv("normalized_data.csv", index=False)
 
 
 load('../healthcare-dataset-stroke-data.csv')
