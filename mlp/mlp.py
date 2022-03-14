@@ -10,12 +10,12 @@ class MLP:
         self.learning_rate = learning_rate
         self.momentum = momentum
         self.num_of_hl = hidden_layer_count
-        row, columns = self.train_data.shape
-        self.hidden_layer_weights = self.generate_random_weights(hidden_layer_count)
 
     def setup_data(self, file_path):
         file = np.loadtxt(open(file_path, "rb"), delimiter=",", skiprows=1)
-        self.train_data, self.test_data = train_test_split(file)
+        train, test = train_test_split(file)
+        self.train_data = np.asarray(train)
+        self.test_data = np.asarray(test)
         print(self.test_data)
 
     @staticmethod
