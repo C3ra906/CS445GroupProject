@@ -23,12 +23,10 @@ class NeuralNetwork:
         self.output_dim = 1
         self.input_dim = training_data.input_matrix.shape[1]
         self.hidden_weights = np.random.uniform(-.5, .5, (n, self.input_dim))
-        self.output_weights = np.random.uniform(-.5, .5,
-                                                (self.output_dim, n + 1))
+        self.output_weights = np.random.uniform(-.5, .5, (self.output_dim, n + 1))
         self.predictions = None
         self.weight_deltas_output = None
         self.weight_deltas_hidden = None
-        self.output = []
         self.prev_weight_deltas_output = None
         self.prev_weight_deltas_hidden = None
         self.learning_rate = learning_rate
@@ -41,15 +39,14 @@ class NeuralNetwork:
         self.threshold = threshold
         self.epochs = epochs
 
-    def get_predictions(self, size):
+    def get_predictions(self):
         # get prediction from output activations
-        self.predictions = np.where(self.a_output > self.threshold, 1, 0).flatten()
+        self.predictions = np.where(self.a_output >= self.threshold, 1, 0).flatten()
 
     def test(self, dataset):
         # feed each row of dataset through the network
-        self.output = []
         self.feed_forward(dataset.input_matrix)
-        self.get_predictions(len(dataset.input_matrix))
+        self.get_predictions()
         self.confusion_matrix = np.zeros((2, 2), int)
         # build confusion matrix
         self.confusion_matrix[1][1] = np.count_nonzero(self.predictions)
@@ -67,9 +64,9 @@ class NeuralNetwork:
             self.hidden_weights, datum.T)
         # calculate activations of hidden layer
         self.a_hidden = activation(hidden_weighted_inputs)
-        # add bias to hidden activations, 1 for each row in batch
-        bias_neurons = np.ones(shape=(1, self.a_hidden.shape[1]))
-        self.a_hidden = np.concatenate([self.a_hidden, bias_neurons], 0)
+        # add bias inputs to hidden activations, 1 for each row in batch
+        bias_inputs = np.ones(shape=(1, self.a_hidden.shape[1]))
+        self.a_hidden = np.concatenate([self.a_hidden, bias_inputs], 0)
         # calculate weighted inputs for output layer
         output_weighted_inputs = np.dot(
             self.output_weights, self.a_hidden)
@@ -108,8 +105,6 @@ class NeuralNetwork:
         # accuracies[0] is training accuracy
         # accuracies[1] is test accuracy
         accuracies = [[], []]
-        positives = []
-        negatives = []
         # initial epoch for baseline, no back propagation
         print('Epoch 0')
         training_accuracy = self.test(self.training_data)
@@ -138,18 +133,12 @@ class NeuralNetwork:
             print(self.confusion_matrix)
             accuracies[0].append(training_accuracy)
             accuracies[1].append(test_accuracy)
-            positives.append(
-                self.confusion_matrix[1][1] / (self.confusion_matrix[1][0] + self.confusion_matrix[1][1]) * 100)
-            negatives.append(
-                self.confusion_matrix[0][0] / (self.confusion_matrix[0][0] + self.confusion_matrix[0][1]) * 100)
-            print(
-                f'Percentage of positive labels accurately identified: {round(positives[i], 2)}%')
-            # early stopping point
-            # if i > 1 and test_accuracy - accuracies[1][i - 1] < 0:
-            #     break
             self.shuffle()
         # plot the training and test accuracies
         self.plot(accuracies[0], accuracies[1])
+        tpr = self.confusion_matrix[1][1] / (self.confusion_matrix[1][1] + self.confusion_matrix[1][0]) * 100
+        fpr = self.confusion_matrix[0][1] / (self.confusion_matrix[0][0] + self.confusion_matrix[0][1]) * 100
+        return tpr, fpr
 
     def shuffle(self):
         order = np.arange(len(self.training_data.input_matrix))
