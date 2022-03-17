@@ -1,11 +1,11 @@
 #CS545 Group Project. Logistic Regression
 
-from numpy.lib.shape_base import row_stack
 import pandas as pd
 import numpy as np
 from pandas.core.base import DataError
-import scipy.stats as sc
 from sklearn import preprocessing
+from sklearn.model_selection import train_test_split
+import sklearn as sk
 
 #Data Path
 path = './healthcare-dataset-stroke-data.csv'
@@ -31,18 +31,24 @@ def csv_load(file_path):
    min_max_scaler = preprocessing.MinMaxScaler()
    data[['gender','age', 'work_type', 'smoking_status', 'avg_glucose_level', 'bmi', 'smoking_status']] = min_max_scaler.fit_transform(data[['gender','age', 'work_type', 'smoking_status', 'avg_glucose_level', 'bmi', 'smoking_status']])
 
+   train_set, test_set = create_sets(data)
+
    #save labels as its own vector
-   labels = np.copy(data['stroke'])
-   data['stroke'].replace([0], [1], inplace = True) #I'm just replacing this entire row with 1s for weight x input multiplication
+   train_labels = np.copy(train_set['stroke'])
+   train_set['stroke'].replace([0], [1], inplace = True) #I'm just replacing this entire row with 1s for weight x input multiplication
+   test_labels = np.copy(test_set['stroke'])
+   test_set['stroke'].replace([0], [1], inplace = True) #I'm just replacing this entire row with 1s for weight x input multiplication
+   return train_set, test_set, train_labels, test_labels
 
-
-   return data, labels
-
-#TODO Split test and training data 
+#Function to create training and test sets
+def create_sets(data):
+    test_set, train_set = sk.model_selection.train_test_split(data, test_size=0.5, train_size=0.5, random_state=34, shuffle=True, stratify=None)
+    return train_set, test_set
 
 #Function that initializes the weights for the input x weight matrix and change matrix to keep track of changes in weights
 def initialize_weights():
     #We have 10 features + b_0 and 4909 rows of data
+    np.random.seed(34)
     w = np.random.randint(-5, 5, size=(1, 10))/100 #set weights to random number between -0.05 to 0.05
     b_0 = np.ones((1, 1))
 
@@ -62,21 +68,33 @@ def logistic(weights, inputs):
 #TODO Maximum Likelihood Estimate for parameters
 def MLE(data, labels, weights, w_changes):
     learn = 0.001 #learning rate
-    sigma = logistic(weights, data) #gives 1x4909 sigma values
-    labels = np.reshape(labels, (4909, 1))
+    sigma = logistic(weights, data) #gives matrix of sigma values
+    size = np.size(labels, 0)
+    labels = np.reshape(labels, (size, 1))
     runs = 0
+
+    #Round to 4th decimial place for stopping condition check
+    w_changes = np.round(w_changes, 4)
+    weights = np.round(weights, 4)
+
     comparison = w_changes == weights
 
-    #while (comparison.all() == False): #This loop runs forever
-    for n in range(500):
+    while (comparison.all() == False): 
         w_changes = np.copy(weights)
         weights += learn * np.dot((labels.T - sigma), data) #This code may not be working correctly
         sigma = logistic(weights, data)
+
+        #Round to 4th decimial place for stopping condition check
+        w_changes = np.round(w_changes, 4)
+        weights = np.round(weights, 4)
+        
         comparison = w_changes == weights
         runs += 1
-        #print(f"previous weight: {w_changes}")
-        #print(f"weights:{weights}")
-        #print(f"Run {runs + 1 } Weight change: {weights - w_changes}")
+
+
+       # print(f"previous weight: {w_changes}")
+       # print(f"weights:{weights}")
+       # print(f"Run {runs + 1 } Weight change: {weights - w_changes}")
     
     return weights
 
@@ -84,23 +102,26 @@ def predict(data, weights, labels):
     confusion = np.zeros((2,2)) #[TP, FN][FP, TN]
     index = 0
     results = np.dot(data, weights.T)
+    count_s = 0
     for row in results:
         #print(row)
         #print(labels[index])
         if row >= 0:
             if labels[index] == 1:
+               count_s += 1
                confusion[0,0] += 1
-               print("stroke - correct")
+               #print("stroke - correct")
             else:
                confusion[1,0] += 1
-               print("stroke - false")                   
+               #print("stroke - false")                   
         else:
             if labels[index] == 0:
                confusion[1,1] += 1
-               print("Non-stroke - correct")
+               #print("Non-stroke - correct")
             else:
+               count_s += 1
                confusion[0,1] += 1
-               print("Non-stroke - false") 
+               #print("Non-stroke - false") 
         index+= 1
 
     tp = confusion[0,0]
@@ -111,16 +132,36 @@ def predict(data, weights, labels):
     print(tn)
     fn = confusion[0,1]
     print(fn)
-    #accuracy = tp/(tp + fp)
-    #print(f"Acurracy: {accuracy}")
+    accuracy = (tp + tn)/(tp + tn + fp + fn)
+    print(f"stroke in set: {count_s}")
+    return accuracy
+
+def run_epoch(train_set, test_set, train_labels, test_labels): #Currently running epochs doesn't change anything because we run one epoch until weights no longer change anyway
+    epoch = 0
+    weights, w_changes = initialize_weights()
+    while (epoch < 1):
+        w_changes = np.zeros((1, 11))
+        print(f"Running epoch {epoch + 1}:")
+        final_weights = MLE(train_set, train_labels, weights,w_changes)
+        tr_accuracy = predict(train_set, final_weights, train_labels)
+        print(f"For epoch {epoch + 1} Training accuracy: {tr_accuracy}")
+        weights = np.copy(final_weights)
+        epoch += 1
+
+    #test
+    final_weights = MLE(test_set, test_labels, weights,w_changes)
+    t_accuracy = predict(test_set, final_weights, test_labels)
+    print(f"Test accuracy: {t_accuracy}")
+
 
 def main():
-    data, labels = csv_load(path)
+    train_set, test_set, train_labels, test_labels = csv_load(path)
+    run_epoch(train_set, test_set, train_labels, test_labels)
     #print(data)
-    weights, w_changes = initialize_weights()
+    #weights, w_changes = initialize_weights()
     #print(weights)
-    final_weights = MLE(data, labels, weights,w_changes)
-    predict(data, final_weights, labels)
+    #final_weights = MLE(data, labels, weights,w_changes)
+    #predict(data, final_weights, labels)
 
 
 if __name__ == '__main__':
