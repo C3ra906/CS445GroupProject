@@ -241,7 +241,6 @@ def run_epoch(train_set, test_set, train_labels, test_labels):
 
     #Run Test
     print(f"Testing:")
-    final_weights = MLE(test_set, test_labels, weights,w_changes)
     t_accuracy = predict(test_set, final_weights, test_labels)
     print(f"Test accuracy: {t_accuracy}")
 
