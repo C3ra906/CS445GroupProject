@@ -1,0 +1,6 @@
+.vs/*
+mlp/env/*
+mlp/.idea/*
+.idea/*
+venv/*
+mlp/__pycache__/*
