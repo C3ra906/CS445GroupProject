@@ -5,80 +5,90 @@ import numpy as np
 from pandas.core.base import DataError
 from sklearn import preprocessing
 from sklearn.model_selection import train_test_split
-import sklearn as sk
 
 #Data Path
 path = './healthcare-dataset-stroke-data.csv'
 
-#Function that loads csv data files
+#Function that loads and preprocesses csv data
 def preprocess_data(file_path, choice):
    data = pd.read_csv(file_path)
 
-   # replace categorical values with numerical
+   #Replace categorical values with numerical
    data['gender'].replace(['Male', 'Female', 'Other'], [0,1,2], inplace = True)
    data['ever_married'].replace(['No', 'Yes'], [0,1], inplace = True)
    data['work_type'].replace(['Private', 'Self-employed','Govt_job', 'children', 'Never_worked'],[0,1,2,3,4], inplace = True)
    data['Residence_type'].replace(['Rural','Urban'], [0,1], inplace = True)
    data['smoking_status'].replace(['never smoked', 'Unknown', 'formerly smoked', 'smokes'],[0,1,2,3], inplace = True)
-
-   #split data by labels
+   
+   #Split data by labels
    stroke = data.iloc[:248,:].copy()
    non_stroke = data.iloc[249:,:].copy()
-   
+
+   #Remove rows with nan
+   stroke.dropna(inplace = True) #208
+   non_stroke.dropna(inplace = True) #4700
+
+   #Use original data without over or undersampling
    if (choice == 0):
-      #stroke_t , stroke_tr = sk.model_selection.train_test_split(data, test_size=0.5, train_size=0.5, random_state=34, shuffle=True, stratify=None)
-      #non_stroke_t , non_stroke_tr = sk.model_selection.train_test_split(data, test_size=0.5, train_size=0.5, random_state=34, shuffle=True, stratify=None)
       #Split data into even halves
-      stroke_t = stroke.iloc[:124,:].copy()
-      stroke_tr = stroke.iloc[125:,:].copy()
-      non_stroke_t = non_stroke.iloc[0:2003,:].copy()
-      non_stroke_tr = non_stroke.iloc[2004:,:].copy()      
+      stroke_t = stroke.iloc[:103,:].copy()
+      stroke_tr = stroke.iloc[104:,:].copy()
+      non_stroke_t = non_stroke.iloc[0:2350,:].copy()
+      non_stroke_tr = non_stroke.iloc[2351:,:].copy()  
+      
+      #Merge to create test_set and train_set
       t_frames = [stroke_t, non_stroke_t]
       tr_frames = [stroke_tr, non_stroke_tr]
       test_set = pd.concat(t_frames)
       train_set = pd.concat(tr_frames)
-      print(test_set)
-      print(train_set)
 
+   #Use undersampling of nonstroke data
    elif (choice == 1):
       train_set, test_set = undersample(stroke, non_stroke)
+
+   #Use oversampling of stroke data
    elif (choice == 2):
       train_set, test_set = oversample(stroke, non_stroke)
+
+   #Use oversampling of stroke data and undersampling of nonstroke data
    else:
       train_set, test_set = over_undersample(stroke, non_stroke)
 
-   # remove rows with nan
-   train_set.dropna(inplace = True) #208 rows
-   test_set.dropna(inplace = True) #4700 rows
+   #Remove rows with nan
+   #train_set.dropna(inplace = True) 
+   #test_set.dropna(inplace = True) 
 
-   # remove id column
+   #Remove id column
    train_set = train_set.drop(columns = 'id') 
    test_set = test_set.drop(columns = 'id')
 
-   #scale data to range 0 to 1
+   #Scale data to range 0 to 1
    min_max_scaler = preprocessing.MinMaxScaler()
    train_set[['gender','age', 'work_type', 'smoking_status', 'avg_glucose_level', 'bmi', 'smoking_status']] = min_max_scaler.fit_transform(train_set[['gender','age', 'work_type', 'smoking_status', 'avg_glucose_level', 'bmi', 'smoking_status']])
    test_set[['gender','age', 'work_type', 'smoking_status', 'avg_glucose_level', 'bmi', 'smoking_status']] = min_max_scaler.fit_transform(test_set[['gender','age', 'work_type', 'smoking_status', 'avg_glucose_level', 'bmi', 'smoking_status']])
 
-   #save labels as its own vector
+   #Save labels as its own vector
    test_labels = np.copy(test_set['stroke'])
-   test_set['stroke'].replace([0], [1], inplace = True) #I'm just replacing this entire row with 1s for weight x input multiplication
+   test_set['stroke'].replace([0], [1], inplace = True) #Replacing the entire row with 1s for weight x input multiplication
    train_labels = np.copy(train_set['stroke'])
-   train_set['stroke'].replace([0], [1], inplace = True) #I'm just replacing this entire row with 1s for weight x input multiplication
+   train_set['stroke'].replace([0], [1], inplace = True) #Replacing the entire row with 1s for weight x input multiplication
+
+   print(train_set)
+   print(test_set)  
 
    return train_set, test_set, train_labels, test_labels
 
+#Undersample Non-stroke Data
 def undersample(stroke, non_stroke):
-   #Undersample non stroke data by about half
    undersample_non_stroke = non_stroke.sample(n = 2000) #picks 2000 random data points from the data set 
 
-   #Split data into even halves
-   stroke_t = stroke.iloc[:103,:].copy()
-   stroke_tr = stroke.iloc[104:,:].copy()
+   #Split data into halves
+   stroke_t = stroke.iloc[:104,:].copy()
+   stroke_tr = stroke.iloc[105:,:].copy()
    u_non_stroke_t = undersample_non_stroke.iloc[0:999,:].copy()
    u_non_stroke_tr = undersample_non_stroke.iloc[1000:,:].copy()
 
-   #merge to create test_set and train_set
+   #Merge to create test_set and train_set
    t_frames = [stroke_t, u_non_stroke_t]
    tr_frames = [stroke_tr, u_non_stroke_tr]
    test_set = pd.concat(t_frames)
@@ -86,19 +96,21 @@ def undersample(stroke, non_stroke):
 
    return train_set, test_set
 
+#Oversample Stroke Data
 def oversample(stroke, non_stroke):
-   #Oversample stroke data by about half
-   oversample_stroke = stroke.sample(n = 100)
+   oversample_stroke = stroke.sample(n = 100) #picks 100 random data points from the data set
+
+   #Merge to one set
    s_frame = [oversample_stroke, stroke]
    o_stroke = pd.concat(s_frame)
    
    #Split data into even halves
-   stroke_t = o_stroke .iloc[:153,:].copy()
-   stroke_tr = o_stroke .iloc[144:,:].copy()
-   non_stroke_t = non_stroke.iloc[0:2003,:].copy()
-   non_stroke_tr = non_stroke.iloc[2004:,:].copy()
+   stroke_t = o_stroke .iloc[:154,:].copy()
+   stroke_tr = o_stroke .iloc[155:,:].copy()
+   non_stroke_t = non_stroke.iloc[0:2349,:].copy()
+   non_stroke_tr = non_stroke.iloc[2350:,:].copy()  
 
-   #merge to create test_set and train_set
+   #Merge to create test_set and train_set
    t_frames = [stroke_t, non_stroke_t]
    tr_frames = [stroke_tr, non_stroke_tr]
    test_set = pd.concat(t_frames)
@@ -106,50 +118,53 @@ def oversample(stroke, non_stroke):
 
    return train_set, test_set
 
+#Oversample Non-Stroke Data and Stroke Data
 def over_undersample(stroke, non_stroke):
-   #Oversample stroke data by about half
-   oversample_stroke = stroke.sample(n = 100)
+   oversample_stroke = stroke.sample(n = 100) #picks 100 random data points from the data set
+
+   #Merge to one set
    s_frame = [oversample_stroke, stroke]
    o_stroke = pd.concat(s_frame)
    
-   #Undersample non stroke data by about half
    undersample_non_stroke = non_stroke.sample(n = 2000) #picks 2000 random data points from the data set 
 
-   #Split data into even halves
-   stroke_t = o_stroke .iloc[:153,:].copy()
-   stroke_tr = o_stroke .iloc[144:,:].copy()
+   #Split data into halves
+   stroke_t = o_stroke .iloc[:154,:].copy()
+   stroke_tr = o_stroke .iloc[155:,:].copy()
    non_stroke_t = undersample_non_stroke.iloc[0:999,:].copy()
    non_stroke_tr = undersample_non_stroke.iloc[1000:,:].copy()
 
-   #merge to create test_set and train_set
+   #Merge to create test_set and train_set
    t_frames = [stroke_t, non_stroke_t]
    tr_frames = [stroke_tr, non_stroke_tr]
    test_set = pd.concat(t_frames)
    train_set = pd.concat(tr_frames)
 
    return train_set, test_set
+
 #Function that initializes the weights for the input x weight matrix and change matrix to keep track of changes in weights
 def initialize_weights():
-    #We have 10 features + b_0 and 4909 rows of data
+    #We have 10 features + b_0 
+    np.random.seed(34)
     w = np.random.randint(-5, 5, size=(1, 10))/100 #set weights to random number between -0.05 to 0.05
     b_0 = np.ones((1, 1))
 
-    #add b_0 to the end of weight matrix since we changed the stroke column to 1s
+    #Add b_0 to the end of weight matrix since we changed the stroke column to 1s
     weights = np.append(w, b_0, axis = 1) 
     w_changes = np.zeros((1, 11))
 
     return weights, w_changes
 
-#TODO Logisitc function
+#Logistic Function for Sigma Calculation
 def logistic(weights, inputs):
 
    sigma = 1/(1 + np.exp(-1 * np.dot(weights, inputs.T)))
 
    return sigma
 
-#Maximum Likelihood Estimate for parameters
+#Maximum Likelihood Estimate for Parameters
 def MLE(data, labels, weights, w_changes):
-    learn = 0.001 #learning rate
+    learn = 0.0001 #learning rate
     sigma = logistic(weights, data) #gives matrix of sigma values
     size = np.size(labels, 0)
     labels = np.reshape(labels, (size, 1))
@@ -163,7 +178,7 @@ def MLE(data, labels, weights, w_changes):
 
     while (comparison.all() == False): 
         w_changes = np.copy(weights)
-        weights += learn * np.dot((labels.T - sigma), data) #This code may not be working correctly
+        weights += learn * np.dot((labels.T - sigma), data) 
         sigma = logistic(weights, data)
 
         #Round to 4th decimial place for stopping condition check
@@ -172,7 +187,6 @@ def MLE(data, labels, weights, w_changes):
         
         comparison = w_changes == weights
         runs += 1
-
 
         #print(f"previous weight: {w_changes}")
         #print(f"weights:{weights}")
@@ -186,43 +200,38 @@ def predict(data, weights, labels):
     results = np.dot(data, weights.T)
     count_s = 0
     for row in results:
-        #print(row)
-        #print(labels[index])
         if row > 0:
             if labels[index] == 1:
                count_s += 1
                confusion[0,0] += 1
-               #print("stroke - correct")
             else:
-               confusion[1,0] += 1
-               #print("stroke - false")                   
+               confusion[1,0] += 1               
         else:
             if labels[index] == 0:
                confusion[1,1] += 1
-               #print("Non-stroke - correct")
             else:
                count_s += 1
                confusion[0,1] += 1
-               #print("Non-stroke - false") 
         index+= 1
 
     tp = confusion[0,0]
-    #print(tp)
+    print(tp)
     fp = confusion[1,0]
-    #print(fp)
+    print(fp)
     tn = confusion[1,1]
-    #print(tn)
+    print(tn)
     fn = confusion[0,1]
-    #print(fn)
+    print(fn)
     accuracy = (tp + tn)/(tp + tn + fp + fn)
-    #print(f"stroke in set: {count_s}")
     print(f"confusion matrix: \n {confusion}")
     return accuracy
 
-def run_epoch(train_set, test_set, train_labels, test_labels): #Currently running epochs doesn't change anything because we run one epoch until weights no longer change anyway
+def run_epoch(train_set, test_set, train_labels, test_labels): 
     epoch = 0
     weights, w_changes = initialize_weights()
-    while (epoch < 1):
+
+    #Run Training
+    while (epoch < 1):#set to 1 since weights no longer change after the first epoch
         print(f"Training until weights no longer change:")
         final_weights = MLE(train_set, train_labels, weights,w_changes)
         tr_accuracy = predict(train_set, final_weights, train_labels)
@@ -230,7 +239,7 @@ def run_epoch(train_set, test_set, train_labels, test_labels): #Currently runnin
         weights = np.copy(final_weights)
         epoch += 1
 
-    #test
+    #Run Test
     print(f"Testing:")
     final_weights = MLE(test_set, test_labels, weights,w_changes)
     t_accuracy = predict(test_set, final_weights, test_labels)
@@ -238,19 +247,18 @@ def run_epoch(train_set, test_set, train_labels, test_labels): #Currently runnin
 
 
 def main():
-    print("Evenly split data: ")
+    print("Unchanged data size: ")
     train_set, test_set, train_labels, test_labels = preprocess_data(path, 0)
     run_epoch(train_set, test_set, train_labels, test_labels)
-    print("Undersampled:")
+    print("\nUndersampled:")
     train_set, test_set, train_labels, test_labels = preprocess_data(path, 1)
     run_epoch(train_set, test_set, train_labels, test_labels)
-    print("\n Oversampled:")
+    print("\nOversampled:")
     train_set, test_set, train_labels, test_labels = preprocess_data(path, 2)
     run_epoch(train_set, test_set, train_labels, test_labels)
-    print("\n Over and Undersampled:")
+    print("\nOver and Undersampled:")
     train_set, test_set, train_labels, test_labels = preprocess_data(path, 3)
     run_epoch(train_set, test_set, train_labels, test_labels)
-    print("Undersampled:")
 
 if __name__ == '__main__':
     main()
