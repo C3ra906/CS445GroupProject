@@ -5,6 +5,8 @@ import numpy as np
 from pandas.core.base import DataError
 from sklearn import preprocessing
 from sklearn.model_selection import train_test_split
+import sklearn as sk
+import random
 
 #Data Path
 path = './healthcare-dataset-stroke-data.csv'
@@ -19,24 +21,27 @@ def preprocess_data(file_path, choice):
    data['work_type'].replace(['Private', 'Self-employed','Govt_job', 'children', 'Never_worked'],[0,1,2,3,4], inplace = True)
    data['Residence_type'].replace(['Rural','Urban'], [0,1], inplace = True)
    data['smoking_status'].replace(['never smoked', 'Unknown', 'formerly smoked', 'smokes'],[0,1,2,3], inplace = True)
+
+   #remove rows with nans
+   data.dropna(inplace = True)
+    
+   #split data by labels
+   stroke = data.loc[data['stroke'] == 1]
+   non_stroke = data.loc[data['stroke'] == 0]
    
-   #Split data by labels
-   stroke = data.iloc[:248,:].copy()
-   non_stroke = data.iloc[249:,:].copy()
-
-   #Remove rows with nan
-   stroke.dropna(inplace = True) #208
-   non_stroke.dropna(inplace = True) #4700
-
-   #Use original data without over or undersampling
    if (choice == 0):
       #Split data into even halves
-      stroke_t = stroke.iloc[:103,:].copy()
-      stroke_tr = stroke.iloc[104:,:].copy()
-      non_stroke_t = non_stroke.iloc[0:2350,:].copy()
-      non_stroke_tr = non_stroke.iloc[2351:,:].copy()  
-      
-      #Merge to create test_set and train_set
+      #create random subset of the row indices
+      random.seed(34)
+      stroke_t_rows = random.sample(range(stroke.shape[0]), k = int(stroke.shape[0]/2))
+      non_stroke_t_rows = random.sample(range(non_stroke.shape[0]), k = int(non_stroke.shape[0]/2))
+      #subset stroke testing and training
+      stroke_t = stroke.iloc[stroke_t_rows,:].copy()
+      stroke_tr = stroke.drop(stroke.index[stroke_t_rows])
+      #subset non stroke testing and training
+      non_stroke_t = non_stroke.iloc[non_stroke_t_rows,:].copy()
+      non_stroke_tr = non_stroke.drop(non_stroke.index[stroke_t_rows]) 
+      #concat stroke and non stroke subsets together
       t_frames = [stroke_t, non_stroke_t]
       tr_frames = [stroke_tr, non_stroke_tr]
       test_set = pd.concat(t_frames)
@@ -54,11 +59,7 @@ def preprocess_data(file_path, choice):
    else:
       train_set, test_set = over_undersample(stroke, non_stroke)
 
-   #Remove rows with nan
-   #train_set.dropna(inplace = True) 
-   #test_set.dropna(inplace = True) 
-
-   #Remove id column
+   # remove id column
    train_set = train_set.drop(columns = 'id') 
    test_set = test_set.drop(columns = 'id')
 
@@ -80,13 +81,17 @@ def preprocess_data(file_path, choice):
 
 #Undersample Non-stroke Data
 def undersample(stroke, non_stroke):
+   #Undersample non stroke data by about half
+   random.seed(34)
    undersample_non_stroke = non_stroke.sample(n = 2000) #picks 2000 random data points from the data set 
 
-   #Split data into halves
-   stroke_t = stroke.iloc[:104,:].copy()
-   stroke_tr = stroke.iloc[105:,:].copy()
-   u_non_stroke_t = undersample_non_stroke.iloc[0:999,:].copy()
-   u_non_stroke_tr = undersample_non_stroke.iloc[1000:,:].copy()
+   #Split data into even halves
+   stroke_t_rows = random.sample(range(stroke.shape[0]), k = int(stroke.shape[0]/2))
+   non_stroke_t_rows = random.sample(range(undersample_non_stroke.shape[0]), k = int(undersample_non_stroke.shape[0]/2)) 
+   stroke_t = stroke.iloc[stroke_t_rows,:].copy()
+   stroke_tr = stroke.drop(stroke.index[stroke_t_rows])
+   u_non_stroke_t = undersample_non_stroke.iloc[non_stroke_t_rows,:].copy()
+   u_non_stroke_tr = undersample_non_stroke.drop(undersample_non_stroke.index[non_stroke_t_rows])
 
    #Merge to create test_set and train_set
    t_frames = [stroke_t, u_non_stroke_t]
@@ -98,17 +103,19 @@ def undersample(stroke, non_stroke):
 
 #Oversample Stroke Data
 def oversample(stroke, non_stroke):
-   oversample_stroke = stroke.sample(n = 100) #picks 100 random data points from the data set
-
-   #Merge to one set
+   #Oversample stroke data by about half
+   random.seed(34)
+   oversample_stroke = stroke.sample(n = 100)
    s_frame = [oversample_stroke, stroke]
    o_stroke = pd.concat(s_frame)
    
    #Split data into even halves
-   stroke_t = o_stroke .iloc[:154,:].copy()
-   stroke_tr = o_stroke .iloc[155:,:].copy()
-   non_stroke_t = non_stroke.iloc[0:2349,:].copy()
-   non_stroke_tr = non_stroke.iloc[2350:,:].copy()  
+   stroke_t_rows = random.sample(range(o_stroke.shape[0]), k = int(o_stroke.shape[0]/2))
+   non_stroke_t_rows = random.sample(range(non_stroke.shape[0]), k = int(non_stroke.shape[0]/2)) 
+   stroke_t = o_stroke.iloc[stroke_t_rows,:].copy()
+   stroke_tr = o_stroke.drop(o_stroke.index[stroke_t_rows])
+   non_stroke_t = non_stroke.iloc[non_stroke_t_rows,:].copy()
+   non_stroke_tr = non_stroke.drop(non_stroke.index[non_stroke_t_rows])
 
    #Merge to create test_set and train_set
    t_frames = [stroke_t, non_stroke_t]
@@ -120,19 +127,21 @@ def oversample(stroke, non_stroke):
 
 #Oversample Non-Stroke Data and Stroke Data
 def over_undersample(stroke, non_stroke):
-   oversample_stroke = stroke.sample(n = 100) #picks 100 random data points from the data set
-
-   #Merge to one set
+   #Oversample stroke data by about half
+   random.seed(34)
+   oversample_stroke = stroke.sample(n = 100)
    s_frame = [oversample_stroke, stroke]
    o_stroke = pd.concat(s_frame)
    
    undersample_non_stroke = non_stroke.sample(n = 2000) #picks 2000 random data points from the data set 
 
-   #Split data into halves
-   stroke_t = o_stroke .iloc[:154,:].copy()
-   stroke_tr = o_stroke .iloc[155:,:].copy()
-   non_stroke_t = undersample_non_stroke.iloc[0:999,:].copy()
-   non_stroke_tr = undersample_non_stroke.iloc[1000:,:].copy()
+   #Split data into even halves
+   stroke_t_rows = random.sample(range(o_stroke.shape[0]), k = int(o_stroke.shape[0]/2))
+   non_stroke_t_rows = random.sample(range(undersample_non_stroke.shape[0]), k = int(undersample_non_stroke.shape[0]/2)) 
+   stroke_t = o_stroke.iloc[stroke_t_rows,:].copy()
+   stroke_tr = o_stroke.drop(o_stroke.index[stroke_t_rows])
+   non_stroke_t = undersample_non_stroke.iloc[non_stroke_t_rows,:].copy()
+   non_stroke_tr = undersample_non_stroke.drop(undersample_non_stroke.index[non_stroke_t_rows])
 
    #Merge to create test_set and train_set
    t_frames = [stroke_t, non_stroke_t]
