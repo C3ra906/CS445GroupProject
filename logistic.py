@@ -136,7 +136,7 @@ def over_undersample(stroke, non_stroke):
    stroke_t_rows = random.sample(range(o_stroke.shape[0]), k = int(o_stroke.shape[0]/2))
    non_stroke_t_rows = random.sample(range(undersample_non_stroke.shape[0]), k = int(undersample_non_stroke.shape[0]/2)) 
    stroke_tr = o_stroke.iloc[stroke_t_rows,:].copy()
-   stroke_t = o_stroke.drop(o_stroke.index[stroke_t_rows]) #removes 20 more data points which are duplicates of stroke_t_row! 
+   stroke_t = o_stroke.drop(o_stroke.index[stroke_t_rows]) 
    non_stroke_t = undersample_non_stroke.iloc[non_stroke_t_rows,:].copy()
    non_stroke_tr = undersample_non_stroke.drop(undersample_non_stroke.index[non_stroke_t_rows])
 
